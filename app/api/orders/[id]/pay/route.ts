@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '../../../../../lib/prisma';
+import { orderStore } from '../../../../../lib/orderStore';
 
 export async function PATCH(
   req: Request, 
@@ -23,21 +24,30 @@ export async function PATCH(
       // Empty body is okay, default to 'PAID'
     }
 
-    // Verify order exists before updating
-    const existing = await prisma.order.findUnique({
-      where: { id: orderId }
-    });
+    // Try updating in Database first
+    try {
+      const existing = await prisma.order.findUnique({
+        where: { id: orderId }
+      });
 
-    if (!existing) {
-      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+      if (existing) {
+        const updatedOrder = await prisma.order.update({
+          where: { id: orderId },
+          data: { paymentStatus: newStatus }
+        });
+        return NextResponse.json(updatedOrder);
+      }
+    } catch (dbErr) {
+      console.warn("DB payment status update failed, fallback to memory store:", dbErr);
     }
 
-    const updatedOrder = await prisma.order.update({
-      where: { id: orderId },
-      data: { paymentStatus: newStatus }
-    });
+    // Fallback to in-memory order store
+    const memOrder = orderStore.updatePaymentStatus(orderId, newStatus);
+    if (memOrder) {
+      return NextResponse.json(memOrder);
+    }
 
-    return NextResponse.json(updatedOrder);
+    return NextResponse.json({ error: 'Order not found' }, { status: 404 });
   } catch (error) {
     console.error("Failed to process mock payment:", error);
     return NextResponse.json({ error: 'Failed to process payment' }, { status: 500 });

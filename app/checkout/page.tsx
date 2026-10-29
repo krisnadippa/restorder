@@ -57,7 +57,8 @@ export default function CheckoutPage() {
       });
 
       if (!response.ok) {
-        throw new Error('Gagal mengirim pesanan');
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || 'Gagal mengirim pesanan');
       }
 
       const order = await response.json();

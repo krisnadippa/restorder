@@ -1,15 +1,6 @@
 import { NextResponse } from 'next/server';
-import prisma from '../../../../../lib/prisma'; // app/api/orders/[id]/status/route.ts -> 5 levels up. Wait: 
-// app / api / orders / [id] / status / route.ts
-// route.ts -> status -> [id] -> orders -> api -> app -> root (6 levels?)
-// Let's count carefully.
-// route.ts is in folder `status`.
-// ../ gives `[id]`
-// ../../ gives `orders`
-// ../../../ gives `api`
-// ../../../../ gives `app`
-// ../../../../../ gives root. Yes, 5 times.
-// Let's use 5.
+import prisma from '../../../../../lib/prisma';
+import { orderStore } from '../../../../../lib/orderStore';
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -27,12 +18,22 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
     }
 
-    const order = await prisma.order.update({
-      where: { id: resolvedParams.id },
-      data: { status }
-    });
-    
-    return NextResponse.json(order);
+    try {
+      const order = await prisma.order.update({
+        where: { id: resolvedParams.id },
+        data: { status }
+      });
+      return NextResponse.json(order);
+    } catch (dbErr) {
+      console.warn("DB order status update failed, fallback to memory store:", dbErr);
+    }
+
+    const memOrder = orderStore.updateStatus(resolvedParams.id, status);
+    if (memOrder) {
+      return NextResponse.json(memOrder);
+    }
+
+    return NextResponse.json({ error: 'Order not found' }, { status: 404 });
   } catch (error) {
     console.error("PATCH order status error:", error);
     return NextResponse.json({ error: 'Failed to update order status' }, { status: 500 });

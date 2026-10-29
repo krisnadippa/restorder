@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '../../../lib/prisma';
 import { Xendit } from 'xendit-node';
 import { CreateInvoiceRequest } from 'xendit-node/invoice/models';
+import { orderStore } from '../../../lib/orderStore';
 
 export async function GET() {
   try {
@@ -15,10 +16,16 @@ export async function GET() {
       },
       orderBy: { createdAt: 'desc' }
     });
-    return NextResponse.json(orders);
+    const memoryOrders = orderStore.getAll();
+    if (!orders || orders.length === 0) {
+      return NextResponse.json(memoryOrders);
+    }
+    const existingIds = new Set(orders.map(o => o.id));
+    const combined = [...orders, ...memoryOrders.filter(o => !existingIds.has(o.id))];
+    return NextResponse.json(combined);
   } catch (error) {
-    console.error("GET orders error:", error);
-    return NextResponse.json({ error: 'Failed to fetch orders' }, { status: 500 });
+    console.warn("GET orders DB failed, using memory store fallback:", error);
+    return NextResponse.json(orderStore.getAll());
   }
 }
 
@@ -88,23 +95,36 @@ export async function POST(req: Request) {
       // We continue to save the order as PENDING so they can pay at cashier
     }
 
-    const newOrder = await prisma.order.create({
-      data: {
+    let newOrder: any = null;
+    try {
+      newOrder = await prisma.order.create({
+        data: {
+          customerName,
+          tableOrAddress,
+          notes,
+          totalAmount,
+          status: 'New Order',
+          paymentStatus: 'PENDING',
+          xenditInvoiceId: xenditInvoiceId,
+          orderItems: {
+            create: orderItemsData
+          }
+        },
+        include: {
+          orderItems: true
+        }
+      });
+    } catch (dbError) {
+      console.warn("Database order creation failed, fallback to in-memory order store:", dbError);
+      newOrder = orderStore.create({
         customerName,
         tableOrAddress,
         notes,
         totalAmount,
-        status: 'New Order',
-        paymentStatus: 'PENDING',
-        xenditInvoiceId: xenditInvoiceId,
-        orderItems: {
-          create: orderItemsData
-        }
-      },
-      include: {
-        orderItems: true
-      }
-    });
+        xenditInvoiceId,
+        items: orderItemsData
+      });
+    }
 
     // Fix the redirect URL to include the actual database Order ID
     if (invoiceUrl && xenditSecretKey) {
