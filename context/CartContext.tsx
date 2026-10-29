@@ -88,8 +88,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const cartTotal = cart.reduce((total, item) => total + item.price * item.quantity, 0);
   const itemCount = cart.reduce((count, item) => count + item.quantity, 0);
 
-  if (!isMounted) return null;
-
   return (
     <CartContext.Provider value={{
       cart,

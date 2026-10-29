@@ -54,6 +54,11 @@ export default function AdminDashboard() {
     fetch('/api/orders')
       .then(res => res.json())
       .then(data => {
+        if (!Array.isArray(data)) {
+          setOrders([]);
+          setLoading(false);
+          return;
+        }
         setOrders(data);
         setLoading(false);
         

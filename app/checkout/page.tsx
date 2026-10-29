@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCart } from '../../context/CartContext';
 import { useRouter } from 'next/navigation';
 import { formatIDR } from '../../lib/utils';
@@ -18,8 +18,13 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  useEffect(() => {
+    if (cart.length === 0 && !loading) {
+      router.push('/cart');
+    }
+  }, [cart.length, loading, router]);
+
   if (cart.length === 0 && !loading) {
-    router.push('/cart');
     return null;
   }
 

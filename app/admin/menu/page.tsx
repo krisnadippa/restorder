@@ -25,7 +25,13 @@ export default function AdminMenu() {
     fetch('/api/menu')
       .then(res => res.json())
       .then(data => {
-        setItems(data);
+        if (Array.isArray(data)) {
+          setItems(data);
+        }
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
         setLoading(false);
       });
   };

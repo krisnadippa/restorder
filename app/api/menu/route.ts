@@ -1,15 +1,19 @@
 import { NextResponse } from 'next/server';
 import prisma from '../../../lib/prisma';
+import { DEFAULT_MENU_ITEMS } from '../../../lib/defaultMenu';
 
 export async function GET() {
   try {
     const items = await prisma.menuItem.findMany({
       orderBy: { createdAt: 'desc' }
     });
+    if (!items || items.length === 0) {
+      return NextResponse.json(DEFAULT_MENU_ITEMS);
+    }
     return NextResponse.json(items);
   } catch (error) {
-    console.error("GET menu error:", error);
-    return NextResponse.json({ error: 'Failed to fetch menu items' }, { status: 500 });
+    console.warn("GET menu error, falling back to default items:", error);
+    return NextResponse.json(DEFAULT_MENU_ITEMS);
   }
 }
 

@@ -4,12 +4,13 @@ import { useEffect, useState, useMemo } from 'react';
 import { useCart } from '../context/CartContext';
 import { MenuItem } from '../types';
 import { formatIDR } from '../lib/utils';
+import { DEFAULT_MENU_ITEMS } from '../lib/defaultMenu';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 export default function Home() {
-  const [items, setItems] = useState<MenuItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [items, setItems] = useState<MenuItem[]>(DEFAULT_MENU_ITEMS);
+  const [loading, setLoading] = useState(false);
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [favorites, setFavorites] = useState<Record<string, boolean>>({});
@@ -27,7 +28,9 @@ export default function Home() {
     fetch('/api/menu')
       .then(res => res.json())
       .then(data => {
-        setItems(data);
+        if (Array.isArray(data) && data.length > 0) {
+          setItems(data);
+        }
         setLoading(false);
       })
       .catch(err => {
@@ -107,7 +110,8 @@ export default function Home() {
 
   // Filter items based on Category, Search Query, and Price Filter
   const displayedItems = useMemo(() => {
-    return items.filter(item => {
+    const safeItems = Array.isArray(items) ? items : DEFAULT_MENU_ITEMS;
+    return safeItems.filter(item => {
       const matchesCategory = activeCategory === 'All' || item.category === activeCategory;
       const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                             (item.description && item.description.toLowerCase().includes(searchQuery.toLowerCase()));
