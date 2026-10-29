@@ -43,7 +43,7 @@ export async function GET(request: Request) {
     });
 
     // 3. Aggregate Total Revenue and Orders
-    const totalRevenue = orders.reduce((sum, order) => sum + order.totalAmount, 0);
+    const totalRevenue = orders.reduce((sum: number, order: any) => sum + (order.totalAmount || 0), 0);
     const totalOrders = orders.length;
 
     // 4. Aggregate Sales by Category for Recharts
@@ -51,13 +51,13 @@ export async function GET(request: Request) {
     const itemSales: Record<string, number> = {};
 
     orders.forEach((order: any) => {
-      order.orderItems.forEach((item: any) => {
+      order.orderItems?.forEach((item: any) => {
         // By Category
-        const cat = item.menuItem.category || 'Lainnya';
+        const cat = item.menuItem?.category || 'Lainnya';
         categorySales[cat] = (categorySales[cat] || 0) + item.quantity;
         
         // By Specific Item
-        const itemName = item.menuItem.name || 'Unknown';
+        const itemName = item.menuItem?.name || 'Unknown';
         itemSales[itemName] = (itemSales[itemName] || 0) + item.quantity;
       });
     });
@@ -77,9 +77,9 @@ export async function GET(request: Request) {
 
     // 5. Aggregate Sales by Date (for timeline chart)
     const timelineSales: Record<string, number> = {};
-    orders.forEach(order => {
-        const dateKey = order.createdAt.toISOString().split('T')[0]; // YYYY-MM-DD
-        timelineSales[dateKey] = (timelineSales[dateKey] || 0) + order.totalAmount;
+    orders.forEach((order: any) => {
+        const dateKey = new Date(order.createdAt).toISOString().split('T')[0]; // YYYY-MM-DD
+        timelineSales[dateKey] = (timelineSales[dateKey] || 0) + (order.totalAmount || 0);
     });
 
     const timelineChartData = Object.entries(timelineSales)
